@@ -4,25 +4,20 @@ use English;
 # the contents of the Makefile that is written.
 
 
-$abstract = "low-level, platform independent printing (curently Linux and 
-    MS Win32. other UNIXES should also work.)";
+$abstract = "Simple printer support for window and linux/unix";
 
-if ($OSNAME eq "MSWin32") {
-  WriteMakefile(
-		'NAME'		=> 'Printer',
-		'VERSION_FROM'	=> 'Printer.pm',
-		'PREREQ_PM'	=> {Win32::Registry, Win32},
-		($] >= 5.005 ?
-		 (ABSTRACT => $abstract,
-		  AUTHOR     => 'Stephen Patterson <steve@lexx.uklinux.net>') :())
-	       );
-} else {
-  WriteMakefile(
-		'NAME'		=> 'Printer',
-		'VERSION_FROM'	=> 'Printer.pm',
-		'PREREQ_PM'	=> {},
-		($] >= 5.005 ?
-		 (ABSTRACT => $abstract,
-		  AUTHOR     => 'Stephen Patterson <steve@lexx.uklinux.net>') :())
-	       );
-}
+WriteMakefile(
+	      NAME	     => 'Printer',
+	      VERSION_FROM => 'lib/Printer.pm',
+	      PREREQ_PM    => {},
+	      PM           => {'lib/Printer.pm'
+				   => '$(INST_LIBDIR)/Printer.pm',
+			       'lib/Printer/Unix.pm',
+			           => '$(INST_LIBDIR)/Printer/Unix.pm',
+			       'lib/Printer/Win32.pm'
+			           => '$(INST_LIBDIR)/Printer/Win32.pm',
+			       },
+	      ($] >= 5.005 ?
+	       (ABSTRACT => $abstract,
+		AUTHOR     => 'Stephen Patterson <steve@lexx.uklinux.net>') :())
+	      );

@@ -1,7 +1,7 @@
+MANIFEST
 COPYING
 INSTALL
-MANIFEST
-Makefile
 Makefile.PL
-Printer.pm
-README
+lib/Printer.pm
+lib/Printer/Win32.pm
+lib/Printer/Unix.pm
