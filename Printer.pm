@@ -16,7 +16,7 @@
 ############################################################################
 
 package Printer;
-$VERSION = '0.95c';
+$VERSION = '0.96';
 
 use English;
 use strict;
@@ -221,7 +221,7 @@ sub use_default {
 	
         # $default now holds the human readable printer name, get the 
 	# name of the corresponding port.
-	my $register = 'SYSTEM\CurrentControlSet\control\Print\Printers\\';
+	register = 'SYSTEM\CurrentControlSet\control\Print\Printers\\';
 	my $path = $register . $default;
 	$HKEY_LOCAL_MACHINE->Open($path, $hkey) or 
 	    Carp::croak "Can't open registry key $path (call 2): $!";
@@ -429,12 +429,12 @@ sub list_jobs {
 	for(my $i = 0; $i < @queue; ++$i) {
 	    $queue[$i] =~ s/\s+/ /g; # remove extraneous spaces
 	    my @job = split / /, $queue[$i];
-	    $queue[$i] = ('Rank' => $job[0],
+	    $queue[$i] = {'Rank' => $job[0],
 			  'Owner' => $job[1],
 			  'Job' => $job[2],
 			  'Files' => $job[3],
 			  'Size' => $job[4]
-			  );
+                         };
 	}
 
     } # end linux
@@ -663,6 +663,15 @@ David W Phillips (ss0300@dfa.state.ny.us)
 =back
 
 =head1 Changelog
+
+=head2 0.96
+
+=over 4
+
+=item * Some bugs which generated warnings when using -w fixed thanks to a 
+patch from David Wheeler
+
+=back
 
 =head2 0.95c
 
