@@ -16,7 +16,7 @@
 ############################################################################
 
 package Printer;
-$VERSION = '0.95a';
+$VERSION = '0.95b';
 
 use English;
 use strict;
@@ -90,16 +90,15 @@ sub print_command {
     my $self = shift();
     my %systems = @_;
     my %final_data;
-    
+
     foreach my $system (keys %systems) {
 	foreach my $opt (keys %{ $systems{$system} }) {
 	    my %cmd_data = %{ $systems{$system} };
 	    $final_data{$system} = \%cmd_data;
 	}
     }
-    
+
     $self->{print_command} = \%final_data;
-    
 }
 ############################################################################
 sub list_printers {
@@ -157,13 +156,13 @@ sub list_printers {
 	my $HKEY_LOCAL_MACHINE = $main::HKEY_LOCAL_MACHINE;
 	
 	$HKEY_LOCAL_MACHINE->Open($Register, $hkey) or 
-	    Carp::croak "Can't open registry key $Register: $!";
+	    Carp::croak "Can't open registry key HKEY_LOCAL_MACHINE\\$Register: $!";
 	$hkey->GetKeys(\@key_list);
 	foreach my $key (@key_list) {
 	    my $path = $Register . "\\$key";
 	    my ($pkey, %values, $printers);
 	    $HKEY_LOCAL_MACHINE->Open($path, $pkey) or 
-		Carp::croak "Can\'t open registry key $path: $!";
+		Carp::croak "Can\'t open registry key  HKEY_LOCAL_MACHINE\\$path: $!";
 	    $pkey->GetValues(\%values);
 	    push @ports, $values{Port}[2];
 	    push @names, $values{Name}[2];
@@ -232,9 +231,17 @@ sub use_default {
 }
 ############################################################################
 sub get_unique_spool {
-    # used currently for Win95 only. Get a filename to use as the
+    # Get a filename to use as the
     # spoolfile without overwriting another file
     my ($i, $spoolfile);
+    my $sys = shift;
+
+    # linux - no TEMP env var
+    if ( (! $ENV{TEMP}) && $sys eq 'linux') {
+	$ENV{TEMP} = '/tmp';
+    }
+    # end linux
+
     while (-e "$ENV{TEMP}/printer-$PID.$i") {
 	++$i;
     }
@@ -272,18 +279,17 @@ sub print {
 		close PRINTER;
 	    } else {
 		# command accepts file data, not piped
-		
 		# write $data to a temp file
-		my $spoolfile = &get_unique_spool();
-		open SPOOL, ">" . $spoolfile;
+		my $spoolfile = &get_unique_spool('linux');
+		open SPOOL, ">" . $spoolfile or Carp::croak "Can't write to required temproary file $spoolfile: $!";
 		print SPOOL $data;
-		
 
 		# print this file
 		my $cmd = $self->{print_command}->{linux}->{command};
-		system($cmd) or 
-		    Carp::croak "Can't execute print command: $cmd, $!\n"; 
-		
+		$cmd =~ s/FILE/$spoolfile/;
+		system($cmd); 
+		# or Carp::croak "Can't execute print command: $cmd, $!\n"; 
+		# this or is being executed when it shouldn't be.
 		unlink $spoolfile;
 	    }
 
@@ -304,8 +310,8 @@ sub print {
 		print SPOOL $data or 
 		    Carp::croak "Can't write to print spool $self->{'printer'}: $!";
 		close SPOOL;
-	    } 
-	    
+	    }
+
 	    # any other windows version
 	    else {
 		my $spoolfile = get_unique_spool();
@@ -324,7 +330,6 @@ sub print {
 		my $spoolfile = get_unique_spool();
 		$spoolfile .= '.ps';
 		$cmd =~ s/FILE/$spoolfile/;
-		
 		open SPOOL, ">" . $spoolfile;
 		print "Spool: ", $spoolfile, "\n";
 		print SPOOL $data;
