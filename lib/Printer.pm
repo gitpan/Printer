@@ -1,7 +1,7 @@
 ############################################################################
 ############################################################################
 ##                                                                        ##
-##    Copyright 2001 Stephen Patterson (steve@lexx.uklinux.net)           ##
+##    Copyright 2004 Stephen Patterson (steve@patter.mine.nu)             ##
 ##                                                                        ##
 ##    A cross platform perl printer interface                             ##
 ##    This code is made available under the perl artistic licence         ##
@@ -11,7 +11,7 @@
 ##                                                                        ##
 ##    Debugging and code contributions from:                              ##
 ##    David W Phillips (ss0300@dfa.state.ny.us)                           ##
-##    Graham K Jenkins (Graham.K.Jenkins@team.telstra.com)
+##    Graham K Jenkins (Graham.K.Jenkins@team.telstra.com)                ##
 ##                                                                        ##
 ############################################################################
 ############################################################################
@@ -19,7 +19,7 @@
 # generic routines for Printer
 
 package Printer;
-$VERSION = '0.97d';
+$VERSION = '0.98';
 
 use English;
 use strict;
@@ -27,6 +27,7 @@ no strict 'refs';
 use Carp qw(croak cluck);
 use Env qw(PATH);
 use vars qw(%Env @ISA);
+use DynaLoader;
 
 #############################################################################
 sub new {
@@ -58,20 +59,19 @@ sub new {
 	$self->{'program'} = \%progs;
 
 	# load the unix printer module
-	BEGIN {
-	    require Printer::Unix;
-	}
+	require Printer::Unix;
     }
 
 
     # load system specific modules for win32
-    BEGIN {
-	if ($OSNAME eq "MSWin32") {
-	    # win32 specific modules
-	    require Win32::Registry;  # to list printers
-	    require Win32;
-	    require Printer::Win32;
-	}
+    if ($OSNAME eq "MSWin32") {
+	# win32 specific modules
+	#bootstrap Printer; # for XS only
+	require Win32::Registry;  # to list printers
+	require Win32;
+	require Win32::API;
+	require Win32::Printer;   # load Edgars Binans libs from wasx.net
+	require Printer::Win32;
     }
 
     # for windows, add the windows version.
@@ -161,6 +161,9 @@ make it work with windows 2000 and XP.
 	 	    'MSWin32' => 'LPT1',
 		    $OSNAME => 'Printer');
 
+or for windows network printers
+ $prn  = new Printer('MSWin32' => '\\server\printer')
+
  $prn->print_command('linux' => {'type' => 'pipe',
 			        'command' => 'lpr -P lp'},
 		    'MSWin32' => {'type' => 'command',
@@ -174,6 +177,13 @@ make it work with windows 2000 and XP.
 
  $prn->print($data);
 
+=head2 Special options for print_command under Windows
+
+ $prn->print_command('MSWin32' => {'type' => 'command',
+                                  'command' => MS_ie});
+
+Under Windows, the print_command method accepts the options MS_ie, MS_word
+and MS_excel to print data using Internet Explorer, Word and Excel.
 
 =head1 DESCRIPTION
 
@@ -324,7 +334,7 @@ The array returned is empty (for compatibility).
 
 =head1 NOTES ON THE WINDOWS AND LINUX/UNIX PRINT SPOOLERS
 
-(Or why this will work better on Linux.UNIX than windows)
+(Or why this will work better on Linux/UNIX than windows)
 
 The Linux and UNIX printing systems are based around postscript and
 come with a set of ancillary programs to convert anything which should
@@ -342,7 +352,8 @@ the data passed to the print method can be anything which should be
 printable, i.e. groff/troff, PostScript, plain text, TeX dvi, but on
 windows the only data which can be handled by the printing system is
 plain text, GDI commands or flies written in your printer's interface
-language.
+language, though 0.98 adds the ability to print data using Microsoft's
+Internet Explorer, Word and Excel via OLE.
 
 =head1 BUGS
 
@@ -354,7 +365,7 @@ language.
 
 =head1 AUTHORS
 
-Stephen Patterson (steve@lexx.uklinux.net)
+Stephen Patterson (steve@patter.mine.nu)
 
 David W Phillips (ss0300@dfa.state.ny.us)
 
@@ -370,13 +381,33 @@ David W Phillips (ss0300@dfa.state.ny.us)
 
 =head1 Changelog
 
-=head2 0,97a, 0.97b, 
+=head2 0.98
+
+=over 4
+
+=item * use_default adjusted for Windows XP to pick the first available
+printer.
+
+=item * Added windows subroutines for MS IE, Word and Excel.
+
+=item * Basic windows printing (ASCII text) migrated from a collection
+of crufty code which was depending on backwards compatibility features
+removed in windows 2000/XP to use Edgars Binans Win32::Printer
+module. You can call $printer->print_orig() to use the pre 0.98
+printing routines should you need to.
+
+=back
+
+=head2 0.97a, 0.97b, 0.97c, 0.97d
 
 =over 4
 
 =item * Sequential fixes to work with 'use strict' and '-w'
 
-=item * Printing an array actually works now. 
+=item * list_printers and use_default updated to look at the right parts
+of the registry on windows 2000.
+
+=item * Printing an array actually works now.
 
 =back
 
@@ -413,6 +444,8 @@ patch from David Wheeler
 =over 4
 
 =item * Bug when using print_command with the command option on linux fixed.
+
+=back
 
 =head2 0.95a
 
@@ -480,6 +513,8 @@ data from David Phillips.
 
 =item * Several quoting errors fixed.
 
+=back
+
 =head2 0.93a
 
 =over 4
@@ -521,3 +556,5 @@ will not overwrite an existing file.
 =head2 0.9
     
 Initial release version
+
+=cut

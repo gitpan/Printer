@@ -6,8 +6,9 @@ use English;
 
 $abstract = "Simple printer support for window and linux/unix";
 
+
 WriteMakefile(
-	      NAME	     => 'Printer',
+	      NAME	   => 'Printer',
 	      VERSION_FROM => 'lib/Printer.pm',
 	      PREREQ_PM    => {},
 	      PM           => {'lib/Printer.pm'
@@ -19,5 +20,5 @@ WriteMakefile(
 			       },
 	      ($] >= 5.005 ?
 	       (ABSTRACT => $abstract,
-		AUTHOR     => 'Stephen Patterson <steve@lexx.uklinux.net>') :())
+		AUTHOR     => 'Stephen Patterson <steve@patter.mine.nu>') :())
 	      );

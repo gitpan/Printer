@@ -1,7 +1,7 @@
 ############################################################################
 ############################################################################
 ##                                                                        ##
-##    Copyright 2001 Stephen Patterson (s.patterson@freeuk.com)           ##
+##    Copyright 2004 Stephen Patterson (steve@patter.mine.nu)             ##
 ##                                                                        ##
 ##    A cross platform perl printer interface                             ##
 ##    This code is made available under the perl artistic licence         ##
@@ -21,7 +21,6 @@
 # load environment variables which contain the default printer name (Linux)
 # (from the lprng lpr command manpage)
 use Env qw(PRINTER LPDEST NPRINTER NGPRINTER PATH);
-#use Carp qw(croak cluck);
 
 ############################################################################
 sub list_printers {
@@ -97,7 +96,7 @@ sub use_default {
 	    $self->{'printer'}{$OSNAME} = $1;
 	}
     } else {
-	cluck 'I can\'t determine your default printer, setting it to lp'; 
+	Carp::cluck 'I can\'t determine your default printer, setting it to lp'; 
 	$self->{'printer'}{$OSNAME} = "lp";
     }
     print "Linuxish default = $self->{printer}{$OSNAME}\n\n";
