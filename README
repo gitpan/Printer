@@ -2,7 +2,6 @@ NAME
     Printer.pm - a low-level, platform independent printing interface
     (curently Linux and MS Win32. other UNIXES should also work.)
 
-    This version includes working support for Windows 95.
 
 SYNOPSIS
      use Printer;
@@ -10,6 +9,13 @@ SYNOPSIS
      $prn = new Printer('linux' => 'lp', 
                         'MSWin32' => 'LPT1', 
                         $OSNAME => 'Printer');
+
+     $prn->print_command('linux' = {'type' => 'pipe',
+			            'command' => 'lpr -P lp'},
+		         'MSWin32' = {'type' => 'command',
+				      'command' => 'gswin32c -sDEVICE=mswinpr2 
+                                      -dNOPAUSE -dBATCH FILE'}
+		        );
 
      @available_printers = $prn->list_printers;
 
@@ -27,3 +33,8 @@ DESCRIPTION
 
 PLATFORMS
     This code has been tested on Linux, windows 95 and windows NT4.
+
+
+AVAILIBILITY
+
+    Direct from http://perlprint.sourceforge.net/ and your nearest CPAN mirror.

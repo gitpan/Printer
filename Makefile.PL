@@ -11,7 +11,7 @@ if ($OSNAME eq "MSWin32") {
   WriteMakefile(
 		'NAME'		=> 'Printer',
 		'VERSION_FROM'	=> 'Printer.pm',
-		'PREREQ_PM'	=> {Win32::Registry, Win32::AdminMisc},
+		'PREREQ_PM'	=> {Win32::Registry, Win32},
 		($] >= 5.005 ?
 		 (ABSTRACT => $abstract,
 		  AUTHOR     => 'Stephen Patterson <s.patterson@freeuk.com>') :())
