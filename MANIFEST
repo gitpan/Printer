@@ -1,0 +1,8 @@
+COPYING
+MANIFEST
+Makefile.PL
+Printer.pm
+Printer.ppd
+README
+test-Print.pl
+test.pl

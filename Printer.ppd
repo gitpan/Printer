@@ -1,0 +1,11 @@
+<SOFTPKG NAME="Printer" VERSION="0,94a,0,0">
+	<TITLE>Printer</TITLE>
+	<ABSTRACT>low-level, platform independent printing (curently Linux and 
+    MS Win32. other UNIXES should also work.)</ABSTRACT>
+	<AUTHOR>Stephen Patterson &lt;s.patterson@freeuk.com&gt;</AUTHOR>
+	<IMPLEMENTATION>
+		<OS NAME="linux" />
+		<ARCHITECTURE NAME="i386-linux" />
+		<CODEBASE HREF="Printer-0.94a.ppm.tar.gz" />
+	</IMPLEMENTATION>
+</SOFTPKG>

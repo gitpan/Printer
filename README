@@ -1,0 +1,29 @@
+NAME
+    Printer.pm - a low-level, platform independent printing interface
+    (curently Linux and MS Win32. other UNIXES should also work.)
+
+    This version includes working support for Windows 95.
+
+SYNOPSIS
+     use Printer;
+    
+     $prn = new Printer('linux' => 'lp', 
+                        'MSWin32' => 'LPT1', 
+                        $OSNAME => 'Printer');
+
+     @available_printers = $prn->list_printers;
+
+     $prn->use_default;
+
+     $prn->print($data);
+
+DESCRIPTION
+    A low-level cross-platform interface to system printers.
+
+    This module is intended to allow perl programs to use and query printers
+    on any computer system capable of running perl. The intention of this
+    module is for a program to be able to use the printer without having to
+    know which operating system is being used.
+
+PLATFORMS
+    This code has been tested on Linux, windows 95 and windows NT4.
