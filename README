@@ -1,102 +1,126 @@
 NAME
-    Printer.pm - low-level, platform independent printing (curently Linux and 
-               MS Win32. UNIX should also work.)
+    Printer.pm - a low-level, platform independent printing interface
+    (curently Linux and MS Win32. other UNIXES should also work.)
+
+    This version includes working support for Windows 95.
+
 SYNOPSIS
         use Printer;
     
-        $prn = new Printer('lp');
+        $prn = new Printer('linux' => 'lp', 
+                           'MSWin32' => 'LPT1', 
+                           $OSNAME => 'Printer');
 
         @available_printers = $prn->list_printers;
 
         $prn->use_default;
 
-        $prn->{'printer'} = 'foo';
-
         $prn->print($data);
 
 DESCRIPTION
-    A low-level cross-platform interface to system 
-    printers.
-        This module is intended to allow perl programs to use and query
-        printers on any computer system capable of running perl. The
-        intention of this module is for a program to be able to use the
-        printer without having to know which operating system is being
-        used.
+    A low-level cross-platform interface to system printers.
+
+    This module is intended to allow perl programs to use and query printers
+    on any computer system capable of running perl. The intention of this
+    module is for a program to be able to use the printer without having to
+    know which operating system is being used.
+
+PLATFORMS
+    This code has been tested on Linux, windows 95 and windows NT4.
+
+    I've added possible UNIX support, using the Linux routines. This assumes
+    that your print command is lpr, your queue list command is lpq and that
+    your printer names can be found by grepping /etc/printcap. If it's
+    anything different, email me with the value of "$OSNAME" or "$^O" and
+    the corrections.
 
 USAGE
   Open a printer handle
 
-        $printer = new Printer('osname' => 'printer port');
-        $printer = new Printer('MSWin32' => 'LPT1', 'Linux' => 'lp');
+           $printer = new Printer('osname' => 'printer port');
+           $printer = new Printer('MSWin32' => 'LPT1', 
+                                  'Linux' => 'lp');
 
-        This method takes a hash to set the printer
-        name to be used for each operating system that this module is to
-        be used on (the hash keys are the values of $^O or $OSNAME for
-        each platform) and returns a printer handle which 
-        is used by the other methods.
+    This method takes a hash to set the printer name to be used for each
+    operating system that this module is to be used on (the hash keys are
+    the values of $^O or $OSNAME for each platform) and returns a printer
+    handle which is used by the other methods.
+
+    This method dies with an error message on unsupported platforms.
 
   Select the default printer
 
-        $printer->use_default;
+           $printer->use_default;
 
-        =head3 Linux
-    
-        The default printer is read from the environment variables 
-        $PRINTER, $LPDEST, $NPRINTER, $NGPRINTER in that order, or is set to
-        "lp" if these variables are not defined. 
+   Linux
 
-        =head3 Win32
+    The default printer is read from the environment variables $PRINTER,
+    $LPDEST, $NPRINTER, $NGPRINTER in that order, or is set to "lp" if these
+    variables are not defined. You will be warned if this happens.
 
-        THe default printer is read from the registry (trust me, this works).
+   Win32
+
+    THe default printer is read from the registry (trust me, this works).
 
   List available printers
 
-        %hash = $printer->list_printers.
+         %hash = $printer->list_printers.
     
-        This returns a hash of arrays listing all available printers. 
-        The hash keys are:
+    This returns a hash of arrays listing all available printers. The hash
+    keys are:
 
-        =over 4
-
-        =item * %hash{names} - printer names
-
-        =item * %hash{ports} - printer ports
-
-        =back
-
+    * "%hash{names}" - printer names
+    * "%hash{ports}" - printer ports
   Print
 
-        $printer->print($data);
+           $printer->print($data);
 
-        Print a scalar value onto the print server through a pipe (like Linux)
+    Print a scalar value onto the print server through a pipe (like Linux)
 
   List queued jobs
 
-        @jobs = $printer->list_jobs;
+           @jobs = $printer->list_jobs;
 
-        =head3 Linux
-    
-        Each cell of the array returned is an entire line from the
-        system's lpq command.
+   Linux
 
-        =head3 Windows
+    Each cell of the array returned is an entire line from the system's lpq
+    command.
 
-        The array returned is empty (for compatibility).
+   Windows
 
-        =head3 Warning
+    The array returned is empty (for compatibility).
 
-        This method will probably return a hash in future when I've
-        figured out how to access the print queue on windows. 
+   Warning
+
+    This method will probably return a hash in future when I've figured out
+    how to access the print queue on windows.
 
 BUGS
-        List_jobs needs writing for win32
-
-TESTED PLATFORMS
-        This module has been tested under Linux, Windows NT4 and Windows 95.
-        Testers and developers are wanted for all other platforms.
+    list_queue needs writing for win32
 
 AUTHOR
     Stephen Patterson <s.patterson@freeuk.com>
+
 TODO
-        Make printer name a $OSNAME keyed hash.
-        Make list_queue work on windows.
+    Make list_queue work on windows.
+
+    Test and fully port to UNIX.
+
+    Port to MacOS.
+
+Changelog
+  0.93
+
+    * Printing on windows 95 now uses a unique spoolfile which will not
+    overwrite an existing file.
+    * Documentation spruced up to look like a normal linux manpage.
+  0.92
+
+        * Carp based error tracking introduced.
+  0.91
+
+        * Use the linux routines for all UNIXES.
+  0.9
+
+        Initial release version
+
