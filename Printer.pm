@@ -10,7 +10,7 @@
 ############################################################################
 
 package Printer;
-$VERSION = '0.9';
+$VERSION = '0.91';
 
 use English;
 use strict;
@@ -29,9 +29,23 @@ sub new {
     my %params = @_;
     my $self = {};
 
+    $self->{system} = $OSNAME;
+
+    # frob the system value to use linux routines below for the
+    # various unices
+    # see perldoc perlport for system names
+    if ($OSNAME eq ('aix' or 'bsdos' or 'dgux' or 'dynixptx' or
+		    'freebsd' or 'hpux' or 'irix' or 'rhapsody' or
+		    'machten' or ' next' or 'openbsd' or 'dec_osf'
+		    or 'svr4' or 'sco_sv' or 'unicos' or 'unicosmk'
+		    or 'solaris' or 'sunos') ) {
+	$self->{system} = 'linux';
+    }
+		    
+
     # load system specific modules 
     BEGIN {
-	if ($OSNAME eq "MSWin32") {
+	if ($self->{system} eq "MSWin32") {
 	    require Win32::Registry;  # to list printers
 	    require Win32::AdminMisc; # to find out the windows version
 	}
@@ -46,8 +60,8 @@ sub list_printers {
     my $self = shift;
     my %printers;
 
-    # linux
-    if ($OSNAME eq "linux") {
+    # linuxish systems
+    if ($self->{system} eq "linux") {
 	open (PRINTCAP, '</etc/printcap') || die "Can't read printcap";
 	my @prs;
 	while (<PRINTCAP>) {
@@ -62,7 +76,7 @@ sub list_printers {
     } # end linux
 
     # win32
-    elsif ($OSNAME eq "MSWin32") {
+    elsif ($self->{system} eq "MSWin32") {
 	# look at registry to get printer names for local machine
 	my $Register = "SYSTEM\\CurrentControlSet\\Control\\Print\\Printers";
 	my ($hkey, @key_list, @names, @ports);
@@ -89,8 +103,8 @@ sub use_default {
     # select the default printer
     my $self = shift;
  
-    # linux
-    if ($OSNAME eq "linux") {
+    # linuxish systems
+    if ($self->{system} eq "linux") {
 	if ($Env{PRINTER}) {
 	    $self->{'printer'}{$OSNAME} = $Env{PRINTER};
 	} elsif ($Env{LPDEST}) {
@@ -104,7 +118,7 @@ sub use_default {
 	}
     }
     # windows
-    elsif ($OSNAME eq "MSWin32") {
+    elsif ($self->{system} eq "MSWin32") {
 	# default name is the human readable printer name (not port)
 	# look in the registry to find it
 	my $register = "Config\\0001\\SYSTEM\\CurrentControlSet\\Control\\Print\\Printers";
@@ -132,8 +146,8 @@ sub print {
 	$data .= $_;
     }
 
-    # linux
-    if ($OSNAME eq "linux") {
+    # linuxish systems
+    if ($self->{system} eq "linux") {
 	open PRINTER, "|lpr -P$self->{'printer'}{$OSNAME}" 
 	    || die "Can't open printer connection to $self->{'printer'}{$OSNAME}: $!";
 	print PRINTER $data;
@@ -141,7 +155,7 @@ sub print {
     }
 
     # windows
-    elsif ($OSNAME eq "MSWin32") {
+    elsif ($self->{system} eq "MSWin32") {
 	# see which windows platform this is being run on.
 	my %win_info = GetWinVersion();
 	
@@ -168,8 +182,8 @@ sub list_jobs {
     my $self = shift;
     my @queue;
     
-    # linux
-    if ($OSNAME eq "linux") {
+    # linuxish systems
+    if ($self->{system} eq "linux") {
 	my @lpq = `lpq -P$self->{'printer'}{$OSNAME}`;
 	chomp @_;
         # lprng returns
@@ -198,7 +212,7 @@ sub list_jobs {
 	}
     } # end linux
     
-    elsif ($OSNAME eq "MSWin32") {
+    elsif ($self->{system} eq "MSWin32") {
 	# I have no idea
 	# return an empty queue (for compatibility)
     }
@@ -219,13 +233,13 @@ __END__
     
     use Printer;
     
-    $prn = new Printer('lp');
+    $prn = new Printer('linux' => 'lp',
+		       'MSWin32' => 'LPT1');
 
     @available_printers = $prn->list_printers;
 
     $prn->use_default;
 
-    $prn->{'printer'} = 'foo';
 
     $prn->print($data);
 
@@ -238,6 +252,16 @@ __END__
     intention of this module is for a program to be able to use the
     printer without having to know which operating system is being
     used.
+
+=head1 PLATFORMS
+
+    This code has been tested on Linux, windows 95 and windows NT4. 
+
+    I've added possible UNIX support, using the Linux routines. This
+    assumes that your print command is lpr, your queue list command is
+    lpq and that your printer names can be found by grepping
+    /etc/printcap. If it's anything different, email me with the value
+    of $OSNAME or $^O and the corrections.
 
 =head1 USAGE
 
@@ -309,11 +333,6 @@ __END__
 =head1 BUGS
 
     List_jobs needs writing for win32
-
-=head1 TESTED PLATFORMS
-
-    This module has been tested under Linux, Windows NT4 and Windows 95.
-    Testers and developers are wanted for all other platforms.
 
 =head1 AUTHOR
     Stephen Patterson <s.patterson@freeuk.com>
