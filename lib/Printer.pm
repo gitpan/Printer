@@ -1,7 +1,7 @@
 ############################################################################
 ############################################################################
 ##                                                                        ##
-##    Copyright 2001 Stephen Patterson (s.patterson@freeuk.com)           ##
+##    Copyright 2001 Stephen Patterson (steve@lexx.uklinux.net)           ##
 ##                                                                        ##
 ##    A cross platform perl printer interface                             ##
 ##    This code is made available under the perl artistic licence         ##
@@ -11,6 +11,7 @@
 ##                                                                        ##
 ##    Debugging and code contributions from:                              ##
 ##    David W Phillips (ss0300@dfa.state.ny.us)                           ##
+##    Graham K Jenkins (Graham.K.Jenkins@team.telstra.com)
 ##                                                                        ##
 ############################################################################
 ############################################################################
@@ -18,13 +19,13 @@
 # generic routines for Printer
 
 package Printer;
-$VERSION = '0.97';
+$VERSION = '0.97d';
 
 use English;
 use strict;
 no strict 'refs';
 use Carp qw(croak cluck);
-use Env; qw(PATH);
+use Env qw(PATH);
 use vars qw(%Env @ISA);
 
 #############################################################################
@@ -34,16 +35,14 @@ sub new {
     my %params = @_;
     my $self = {};
 
-    $self->{system} = $OSNAME;
-
     # frob the system value to use linux routines below for the
     # various unices
     # see perldoc perlport for system names
-    if (grep { /^$OSNAME$/  } qw(aix     bsdos  dgux   dynixptx 
-				 freebsd hpux   irix   rhapsody
+    if (grep { /^$OSNAME$/  } qw(aix     bsdos  dgux   dynixptx
+				 freebsd hpux   irix    rhapsody
 				 machten next   openbsd dec_osf
 				 svr4    sco_sv unicos  unicosmk
-				 solaris sunos) ) {
+				 solaris sunos  netbsd  linux) ) {
 	$self->{system} = 'linux';
 
 	# search PATH for lpr, lpq, lp, lpstat (use first found)
@@ -67,7 +66,7 @@ sub new {
 
     # load system specific modules for win32
     BEGIN {
-	if ($^O eq "MSWin32") {
+	if ($OSNAME eq "MSWin32") {
 	    # win32 specific modules
 	    require Win32::Registry;  # to list printers
 	    require Win32;
@@ -77,8 +76,9 @@ sub new {
 
     # for windows, add the windows version.
     # from http://aspn.activestate.com/ASPN/Reference/Products/ActivePerl/lib/Win32.html
-    if ($^O eq "MSWin32") {
-	$self->{winver} = Win32::GetOsName();
+    if ($OSNAME eq "MSWin32") {
+	$self->{system} = 'MSWin32';
+	$self->{winver} = Win32::GetOSName();
     }
 
     $self->{printer} = \%params;
@@ -90,10 +90,11 @@ sub new {
     }
 
     # set orientation
-    if ($params{orientation} eq 'landscape') {
-	$self->{orientation} = 'landscape';
-    } else {
-	$self->{orientation} = 'portrait';
+    $self->{orientation} = 'portrait';
+    if (defined $params{orientation} ) {
+        if ($params{orientation} eq 'landscape') {
+            $self->{orientation} = 'landscape'
+        }
     }
 
     return bless $self, $type;
@@ -120,6 +121,7 @@ sub get_unique_spool {
     # Get a filename to use as the
     # spoolfile without overwriting another file
     my ($i, $spoolfile);
+    $i = 0;
     my $sys = shift;
 
     # linux - no TEMP env var
@@ -214,6 +216,12 @@ is used by the other methods.
 If you intend to use the C<use_default()> or C<print_command()> methods,
 you don't need to supply any parameters to C<new()>.
 
+B<Printer ports and network printers under windows>
+
+To use a printer which is directly attached to your network, you need to
+share that printer from a windows host, otherwise you will just get a file
+which contains the print job in the perl script's directory.
+
 This method dies with an error message on unsupported platforms.
 
 =head2 Define a printer command to use
@@ -228,7 +236,7 @@ This method dies with an error message on unsupported platforms.
 This method allows you to specify your own print command to use. It
 takes 2 parameters for each operating system:
 
-=head3 type
+B<type>
 
 =over 4
 
@@ -240,7 +248,7 @@ the data to be printed
 
 =back
 
-=head3 command
+B<command>
 
 This specifies the command to be used.
 
@@ -250,7 +258,7 @@ This specifies the command to be used.
 
 This should not be used in combination with print_command.
 
-=head3 Linux
+B<Linux>
 
 The default printer is read from the environment variables
 $PRINTER, $LPDEST, $NPRINTER, $NGPRINTER in that order, or is set to
@@ -258,9 +266,10 @@ the value of lpstat -d or is set to
 "lp" if it cannot be otherwise determined. You will be warned if
 this happens.
 
-=head3 Win32
+B<Win32>
 
- THe default printer is read from the registry (trust me, this works).
+The default printer is read from the registry (trust me, this just-about
+works).
 
 =head2 List available printers
 
@@ -271,9 +280,9 @@ The hash keys are:
 
 =over 4
 
-=item * %hash{names} - printer names
+=item * %hash{name} - printer names
 
-=item * %hash{ports} - printer ports
+=item * %hash{port} - printer ports
 
 =back
 
@@ -309,7 +318,7 @@ the print jobs.
 
 =for html </PRE>
 
-=head3 Windows
+B<Windows>
 
 The array returned is empty (for compatibility).
 
@@ -360,6 +369,16 @@ David W Phillips (ss0300@dfa.state.ny.us)
 =back
 
 =head1 Changelog
+
+=head2 0,97a, 0.97b, 
+
+=over 4
+
+=item * Sequential fixes to work with 'use strict' and '-w'
+
+=item * Printing an array actually works now. 
+
+=back
 
 =head2 0.97
 

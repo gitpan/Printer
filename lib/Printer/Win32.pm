@@ -22,44 +22,65 @@ sub list_printers {
     }
     $printers{name} = [ @names ];
     $printers{port} = [ @ports ];
+    return %printers;
 }
 ######################################################################
 sub use_default {
     # select the default printer
     my $self = shift;
+    my ($hkey, %values);
 
     # default name is the human readable printer name (not port)
     # look in the registry to find it
-    my $register = 'Config\0001\SYSTEM\CurrentControlSet\Control\Print\Printers';
-    my ($hkey, %values);
-    my $HKEY_LOCAL_MACHINE = $main::HKEY_LOCAL_MACHINE;
-    $HKEY_LOCAL_MACHINE->Open($register, $hkey) or 
-      Carp::croak "Can't open registry key $register (call 1): $!";
-    $hkey->GetValues(\%values);
-    my $default = $values{Default}[2];
+    if ($self->{winver} eq ('Win95' or 'Win98' or 'WinNT4')) {
+	# the old routines, win95/nt4 tested
+	my $register = 'Config\0001\SYSTEM\CurrentControlSet\Control\Print\Printers';
+	my $HKLM = $main::HKEY_LOCAL_MACHINE;
+	$HKLM->Open($register, $hkey) or 
+	  Carp::croak "Can't open registry key " . $register
+	      . "in use_default(): $EXTENDED_OS_ERROR\n";
+	$hkey->GetValues(\%values);
+	my $default = $values{Default}[2];
+	# $default holds the long printer name, get the port
+	$register = 'SYSTEM\CurrentControlSet\Control\Print\Printers\\';
+	my $path = $register . $default;
+	$HKLM->Open($path, $HKEY) or
+	  Carp::croak "Can't open registry key $path in use_default() "
+	      . $EXTENDED_OS_ERROR;
+	$hkey->GetValues(\%values);
+	$self->{'printer'}{$OSNAME} = $values{Port}[2];
+    } elsif ($self->{winver} eq ('Win2000' or 'WinXP/.Net')) {
+	# different registry paths for win2k
+	my $register = 'Software\Microsoft\Windows NT\CurrentVersion\Windows';
+	my $HKCU = $main::HKEY_CURRENT_USER;
+	$HKCU->Open($register, $hkey) or
+	  Carp::croak "Can't open registry key $register in use_default: $EXTENDED_OS_ERROR\n";
+	$hkey->GetValues(\%values);
+	my $default = $values{Device}[2];
+	$default =~ s/,.*//;
+	# find the port for this printer
+	my $register = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Print\\Printers\\$default";
+	my $HKLM = $main::HKEY_LOCAL_MACHINE;
+	$HKLM->Open($register, $hkey) or
+	  Carp::croak "Can't open registry key $register in use_default(): $EXTENDED_OS_ERROR\n";
+	$hkey->GetValues(\%values);
+	print $values{Port}[2];
+	$self->{'printer'}{$OSNAME} = $values{Port}[2];
+    }
 
-    # $default now holds the human readable printer name, get the 
-    # name of the corresponding port.
-    $register = 'SYSTEM\CurrentControlSet\control\Print\Printers\\';
-    my $path = $register . $default;
-    $HKEY_LOCAL_MACHINE->Open($path, $hkey) or 
-      Carp::croak "Can't open registry key $path (call 2): $!";
-    $hkey->GetValues(\%values);
-    $self->{'printer'}{$OSNAME} = $values{Port}[2];
 }
 ######################################################################
 sub print {
     # print
     my $self = shift;
-    my $data;
-    foreach (@_) {
-	$data .= $_;
-    }
+    my $data = join("", @_);
     unless ($self->{print_command}->{$OSNAME}) {
 	# default pipish method
 
-	# Windows NT variations (NT/2k/XP)
-	if ($self->{winver} =~ m/Win2000|WinXP|WinNT/ ) {
+	# for windows 2000, you get a file of what would reach the printer
+	# *grrr*
+	# Windows NT variations
+	if ($self->{winver} =~ m/WinNT|Win2000|WinXP/ ) {
 	    open SPOOL, ">>" . $self->{'printer'}{$OSNAME} or
 	      Carp::croak "Can't open print spool $self->{'printer'}{$OSNAME}: $!" ;
 	    print SPOOL $data or
@@ -107,4 +128,5 @@ sub list_jobs {
 	Carp::croak 'list_jobs  hasn\'t yet been written for windows. Share and enjoy';
 }
 ######################################################################
+1;
 

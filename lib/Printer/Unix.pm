@@ -21,6 +21,7 @@
 # load environment variables which contain the default printer name (Linux)
 # (from the lprng lpr command manpage)
 use Env qw(PRINTER LPDEST NPRINTER NGPRINTER PATH);
+#use Carp qw(croak cluck);
 
 ############################################################################
 sub list_printers {
@@ -68,6 +69,7 @@ sub list_printers {
 
     $printers{name} = [ @prs ];
     $printers{port} = [ @prs ];
+    return %printers;
 }
 #############################################################################
 sub use_default {
@@ -105,7 +107,8 @@ sub use_default {
 sub print {
     # print
     # $prn->print($data, -orientation => 'landscape') etc
-    my ($self, $data) = @_;
+    my ($self) = shift;
+    my $data = join("", @_);
 
     # use standard print command
     unless ($self->{print_command}) {
@@ -113,8 +116,8 @@ sub print {
 	if ($self->{orientation} eq 'landscape') {
 	    $pr_cmd = '| a2ps -r' . $pr_cmd;
 	}
-	open PRINTER, $pr_cmd;
-	or Carp::croak 
+	open PRINTER, $pr_cmd
+	  or Carp::croak
 	  "Can't open printer connection to $self->{'printer'}{$OSNAME}: $!";
 	print PRINTER $data;
 	close PRINTER;
@@ -226,18 +229,18 @@ sub list_jobs {
     }
 
     # make the queue into an array of hashes
-    for(my $i = 0; $i < @queue; ++$i) {
+    for (my $i = 0; $i < @queue; ++$i) {
 	$queue[$i] =~ s/\s+/ /g; # remove extraneous spaces
 	my @job = split / /, $queue[$i];
-	$queue[$i] = ('Rank' => $job[0],
-		      'Owner' => $job[1],
-		      'Job' => $job[2],
-		      'Files' => $job[3],
-		      'Size' => $job[4]
-		     );
+	$queue[$i] = {Rank  => $job[0],
+		      Owner => $job[1],
+		      Job   => $job[2],
+		      Files => $job[3],
+		      Size  => $job[4]
+		     };
     }
 
 }
 #############################################################################
-
+1;
 
