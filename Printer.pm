@@ -16,7 +16,7 @@
 ############################################################################
 
 package Printer;
-$VERSION = '0.95';
+$VERSION = '0.95a';
 
 use English;
 use strict;
@@ -140,6 +140,10 @@ sub list_printers {
 		Carp::croak "Can't readdir /etc/lp/member: $!";               
             @prs = grep { /^[^\.]/ && -f "/etc/lp/member/$_" } readdir(LPMEM);
         }                                                                   
+	
+	# remove : at end of each name
+	foreach my $pr (@prs) {$pr =~ s/:$//;}
+
         $printers{name} = [ @prs ];
         $printers{port} = [ @prs ];
     } # end linux
@@ -212,16 +216,16 @@ sub use_default {
 	my ($hkey, %values);
 	my $HKEY_LOCAL_MACHINE = $main::HKEY_LOCAL_MACHINE;
 	$HKEY_LOCAL_MACHINE->Open($register, $hkey) or 
-	    Carp::croak "Can't open registry key $register: $!";
+	    Carp::croak "Can't open registry key $register (call 1): $!";
 	$hkey->GetValues(\%values);
 	my $default = $values{Default}[2];
 	
         # $default now holds the human readable printer name, get the 
 	# name of the corresponding port.
-	my $register = 'SYSTEM\CurrentControlSet\control\Print\Printers';
+	my $register = 'SYSTEM\CurrentControlSet\control\Print\Printers\\';
 	my $path = $register . $default;
 	$HKEY_LOCAL_MACHINE->Open($path, $hkey) or 
-	    Carp::croak "Can't open registry key $path: $!";
+	    Carp::croak "Can't open registry key $path (call 2): $!";
 	$hkey->GetValues(\%values);
 	$self->{'printer'}{$OSNAME} = $values{Port}[2];
     } # end win32
@@ -230,11 +234,16 @@ sub use_default {
 sub get_unique_spool {
     # used currently for Win95 only. Get a filename to use as the
     # spoolfile without overwriting another file
-    my $i;
+    my ($i, $spoolfile);
     while (-e "$ENV{TEMP}/printer-$PID.$i") {
 	++$i;
     }
-    return "$ENV{TEMP}/printer-$PID.$i";
+    if ($OSNAME eq 'MSWin32') {
+	$spoolfile =  $ENV{TEMP} . '\printer-' . $PID . $i;
+    } else {
+	$spoolfile = $ENV{TEMP} . '/printer-' . $PID . $i;
+    }
+    return $spoolfile;
 }
 ############################################################################
 sub print {
@@ -249,16 +258,7 @@ sub print {
     if ($self->{'system'} eq "linux") {
 	# use standard print command
 	unless ($self->{print_command}) {
-	    # use available print program, lpr preferred      # DWP
-	    my $lpcmd;                                     # DWP
-	    if ( exists $self->{'program'}{'lpr'} ) {      # DWP
-		$lpcmd = $self->{'program'}{'lpr'}.' -P'   # DWP
-		} elsif ( exists $self->{'program'}{'lp'} ) {  # DWP
-		    $lpcmd = $self->{'program'}{'lp'}.' -d'    # DWP
-		    } else {                                       # DWP
-			Carp::croak "Can't find lpr or lp program for print function" # DWP
-			}                                              # DWP
-	    open PRINTER, "| $lpcmd$self->{'printer'}{$OSNAME}" # DWP- use $lpcmd for lpr/lp
+	    open PRINTER, "| lpr -P $self->{'printer'}{$OSNAME}" 
 		or Carp::croak "Can't open printer connection to $self->{'printer'}{$OSNAME}: $!";
 	    print PRINTER $data;
 	    close PRINTER;
@@ -277,12 +277,10 @@ sub print {
 		my $spoolfile = &get_unique_spool();
 		open SPOOL, ">" . $spoolfile;
 		print SPOOL $data;
-		system("copy /B $spoolfile $self->{'printer'}{$OSNAME}");
-
-		# place filename in command
-		my $cmd = $self->{print_command}->{linux}->{command};
 		
-		# print
+
+		# print this file
+		my $cmd = $self->{print_command}->{linux}->{command};
 		system($cmd) or 
 		    Carp::croak "Can't execute print command: $cmd, $!\n"; 
 		
@@ -294,9 +292,9 @@ sub print {
 
 
     # windows ################################################################
-    elsif ($self->{'system'} eq "MSWin32") {
-	
-	unless ($self->{print_command}) {
+    elsif ($self->{system} eq "MSWin32") {
+
+	unless ($self->{print_command}->{$OSNAME}) {
 	    # default pipish method
 
 	    # Windows NT (tested on NT4)
@@ -320,13 +318,18 @@ sub print {
 
 	} else {
 	    # custom print command
-	    if ($self->{print_command}->{MSWin32}->{type} eq 'file') {
+	    if ($self->{print_command}->{$OSNAME}->{type} eq 'command') {
 		# non-pipe accepting command - use a spoolfile
-		my $cmd = $self->{print_command}->{MsWin32}->{command};
+		my $cmd = $self->{print_command}->{$OSNAME}->{command};
 		my $spoolfile = get_unique_spool();
+		$spoolfile .= '.ps';
+		$cmd =~ s/FILE/$spoolfile/;
+		
 		open SPOOL, ">" . $spoolfile;
+		print "Spool: ", $spoolfile, "\n";
 		print SPOOL $data;
-		system("$cmd") || Carp::croak $OS_ERROR;
+		close SPOOL;
+		system($cmd) || die $OS_ERROR;
 		unlink $spoolfile;
 	    } else {
 		# pipe accepting command
@@ -457,9 +460,9 @@ This version includes working support for Windows 95.
 	 	    'MSWin32' => 'LPT1', 
 		    $OSNAME => 'Printer');
 
- $prn->print_command('linux' = {'type' => 'pipe',
+ $prn->print_command('linux' => {'type' => 'pipe',
 			        'command' => 'lpr -P lp'},
-		    'MSWin32' = {'type' => 'command',
+		    'MSWin32' => {'type' => 'command',
 				 'command' => 'gswin32c -sDEVICE=mswinpr2 
                                  -dNOPAUSE -dBATCH $spoolfile'}
 		    );
@@ -515,9 +518,9 @@ This method dies with an error message on unsupported platforms.
 
 =head2 Define a printer command to use
 
- $prn->print_command('linux' = {'type' => 'pipe',
+ $prn->print_command('linux' => {'type' => 'pipe',
                      'command' => 'lpr -P lp'},
-                     'MSWin32' = {'type' => 'file',
+                     'MSWin32' => {'type' => 'file',
                                   'command' => 'gswin32c -sDEVICE=mswinpr2 
                                   -dNOPAUSE -dBATCH $spoolfile'}
                     );
@@ -544,6 +547,8 @@ This specifies the command to be used.
 =head2 Select the default printer
 
  $printer->use_default;
+
+This should not be used in combination with print_command.
 
 =head3 Linux
     
@@ -608,6 +613,26 @@ the print jobs.
 
 The array returned is empty (for compatibility).
 
+=head1 NOTES ON THE WINDOWS AND LINUX/UNIX PRINT SPOOLERS
+
+The Linux and UNIX printing systems are based around postscript and
+come with a set of ancillary programs to convert anything which should
+be printable into postscript. The postscript representation of your
+print job is then converted into a set of printing commands which your
+printer can recognise. 
+
+Windows printing is based applications wanting to print using windows
+API calls (hideous) to create a  GDI file which is then converted 
+by the print spooler into printer specific commands and sent to the
+physical printer.
+
+What this means to a user of the Printer module is that on Linux/UNIX
+the data passed to the print method can be anything which should be
+printable, i.e. groff/troff, PostScript, plain text, TeX dvi, but on 
+windows the only data which can be handled by the printing system is
+plain text, GDI commands or flies written in your printer's interface
+language.
+
 =head1 BUGS
 
 =over 4
@@ -628,11 +653,19 @@ David W Phillips (ss0300@dfa.state.ny.us)
 
 =item * Make list_jobs work on windows.
 
-=item * Port to MacOS.
+=item * Port to MacOS. Any volunteers?
 
 =back
 
 =head1 Changelog
+
+=head2 0.95a
+
+=over 4
+
+=item * sundry bug fixes
+
+=back
 
 =head2 0.95
 
